@@ -1,6 +1,7 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by cttLib.rc
+// Used by WinOverview2Library.rc
+//
 
 // Next default values for new objects
 // 

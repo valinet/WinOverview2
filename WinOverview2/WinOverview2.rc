@@ -68,12 +68,12 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "VALINET Solutions SRL"
-            VALUE "FileDescription", "WinCenterTitle Daemon"
+            VALUE "FileDescription", "WinOverview2 Daemon"
             VALUE "FileVersion", "1.0.0.1"
             VALUE "InternalName", "ctt.exe"
             VALUE "LegalCopyright", "Copyright (C) 2020 VALINET Solutions SRL"
             VALUE "OriginalFilename", "ctt.exe"
-            VALUE "ProductName", "WinCenterTitle"
+            VALUE "ProductName", "WinOverview2"
             VALUE "ProductVersion", "1.0.0.1"
         END
     END
