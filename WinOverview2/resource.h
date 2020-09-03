@@ -1,6 +1,7 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by ctt.rc
+// Used by WinOverview2.rc
+//
 
 // Next default values for new objects
 // 
