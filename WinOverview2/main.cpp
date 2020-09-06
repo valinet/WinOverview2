@@ -177,7 +177,7 @@ DWORD WINAPI InvokeThread(
     keybd_event(0x43, 0, 0, 0);
     keybd_event(0x43, 0, KEYEVENTF_KEYUP, 0);
     keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, 0);
-    Sleep(100);
+    Sleep(500);
     if (isInOverview && FindWindow(L"MultitaskingViewFrame", NULL) != GetForegroundWindow() && wcscmp(L"Windows.UI.Core.CoreWindow", className))
     {
         invokeSearch();
