@@ -7,7 +7,6 @@
 #pragma comment(lib, "Dwmapi.lib")
 #include "pdb.h"
 #include "ini.h"
-#pragma comment(lib, "urlmon.lib")
 #include <conio.h>
 
 #define DUMMY_CLASS_NAME L"WinOverview2_dummy"
@@ -411,7 +410,7 @@ __declspec(dllexport) DWORD WINAPI main(
             return rv;
         }
 
-        Sleep(200);
+        Sleep(1000);
         CreateThread(
             NULL,
             NULL,
