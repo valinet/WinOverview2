@@ -10,9 +10,9 @@ WinOverview2 reimplements the classic Task View from earlier builds of Windows 1
 
 * Compile - I used Visual Studio 2019, so Build Tools v16, cl v19 and Windows 10 SDK version 10.0.18362.0
 
-* Make sure to use Windows 10 Version 2004, otherwise offsets in twinui.dll may be mismatched. If the application crashes when hooking Explorer, obtain correct offsets from twinui.dll by disassembling with IDA or ghidra and recompile.
+* ~~Make sure to use Windows 10 Version 2004, otherwise offsets in twinui.dll may be mismatched. If the application crashes when hooking Explorer, obtain correct offsets from twinui.dll by disassembling with IDA or ghidra and recompile.~~ Since 1.1.0.0, the application determines the right offsets from twinui.dll dynamically, at run time.
 
-* Launch "WinOverview2.exe" as administrator. I recommend setting to launch at log on using Task Scheduler. This way, the application is able to listen to key strokes (it binds itself to Caps Lock key) in all processes. Elevation is required so that we can switch to chosen application when clicking a thumbnail in Task View.
+* Launch "WinOverview2.exe" as administrator. I recommend setting to launch at log on using Task Scheduler. This way, the application is able to listen to key strokes (it binds itself to Caps Lock key) in all processes. Elevation is required so that we can switch to chosen application when clicking a thumbnail in Task View for elevated applications as well (this could be improved, Explorer uses some mechanism to control elevated applications as well, even though it is not elevated)
 
 * You can close an application when task view is active by hovering over it and clicking the x button that appears in the top right corner.
 
@@ -45,8 +45,8 @@ WinOverview2 reimplements the classic Task View from earlier builds of Windows 1
 
 * Disables Cortana (Windows + C)
 * Overview is displayed only on the main monitor and includes windows from all monitors. This is a limitation of the underlaying architecture, not much can be done about it.
-* twinui.dll offsets are hardcoded at the moment.
-* Initial hooking is a bit cumbersome
+* ~~twinui.dll offsets are hardcoded at the moment.~~ Fixed in 1.1.0.0
+* Initial hooking is a bit cumbersome (need to spawn 2 windows and trigger a snap)
 
 ## Inner workings
 
