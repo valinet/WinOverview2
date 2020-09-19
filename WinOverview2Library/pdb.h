@@ -8,8 +8,11 @@
 #include <stdio.h>
 #include <Windows.h>
 #include <DbgHelp.h>
-
 #pragma comment(lib, "dbghelp.lib")
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
+#include <Wininet.h>
+#pragma comment(lib, "Wininet.lib")
 
 //------------------------------------------------------------------------------
 #define ENABLE_DEBUG_OUTPUT     0
@@ -22,7 +25,12 @@
 #define ADDR_STR2               "CImmersiveHotkeyNotification::OnMessage"
 #define ADDR_STR3               "CSnapAssistControllerBase::_ShowSnapAssist"
 #define ADDR_STR4               "CSnapAssistControllerBase::ItemSelected"
-#define SYMBOL_WEB              "http://msdl.microsoft.com/download/symbols/"
+#define SYMBOL_HOSTNAME         "msdl.microsoft.com"
+#define SYMBOL_WEB              "/download/symbols/"
+#define DLL_NAME                "twinui.dll"
+#define USER_AGENT              "Microsoft-Symbol-Server/10.0.10036.206"
+#define FORM_HEADERS            "Content-Type: application/octet-stream;\r\n"
+
 
 //------------------------------------------------------------------------------
 enum e_mode
@@ -321,6 +329,94 @@ INT get_symbols(const char* pdb_file, DWORD* addresses)
     return 0;
 }
 
+DWORD downloadFile(char* url, char* filename)
+{
+    DWORD dwRet = 0;
+    if (HINTERNET hInternet = InternetOpen(
+        TEXT(USER_AGENT),
+        INTERNET_OPEN_TYPE_DIRECT,
+        NULL,
+        NULL,
+        NULL
+    ))
+    {
+        if (HINTERNET hConnect = InternetConnect(
+            hInternet,
+            TEXT(SYMBOL_HOSTNAME),
+            INTERNET_DEFAULT_HTTP_PORT,
+            NULL,
+            NULL,
+            INTERNET_SERVICE_HTTP,
+            NULL,
+            NULL
+        ))
+        {
+            if (HINTERNET hRequest = HttpOpenRequestA(
+                hConnect,
+                "GET",
+                url,
+                NULL,
+                NULL,
+                NULL,
+                NULL,
+                NULL
+            ))
+            {
+                TCHAR headers[] = TEXT(FORM_HEADERS);
+                char data[1] = "";
+                if (HttpSendRequest(
+                    hRequest,
+                    headers,
+                    wcslen(headers),
+                    reinterpret_cast<LPVOID>(const_cast<char*>(data)),
+                    strlen(data) * sizeof(char)
+                ))
+                {
+                    FILE* f;
+                    fopen_s(&f, filename, "wb");
+                    char buffer[4096];
+                    DWORD dwRead;
+                    while (InternetReadFile(
+                        hRequest,
+                        buffer,
+                        4096,
+                        &dwRead
+                    ))
+                    {
+                        if (dwRead == 0)
+                        {
+                            break;
+                        }
+                        fwrite(buffer, sizeof(char), dwRead, f);
+                        dwRead = 0;
+                    }
+                    fclose(f);
+                }
+                else
+                {
+                    dwRet = 4;
+                }
+                InternetCloseHandle(hRequest);
+            }
+            else
+            {
+                dwRet = 3;
+            }
+            InternetCloseHandle(hConnect);
+        }
+        else
+        {
+            dwRet = 2;
+        }
+        InternetCloseHandle(hInternet);
+    }
+    else
+    {
+        dwRet = 1;
+    }
+    return dwRet;
+}
+
 //------------------------------------------------------------------------------
 // https://deplinenoise.wordpress.com/2013/06/14/getting-your-pdb-name-from-a-running-executable-windows/
 struct PdbInfo
@@ -363,7 +459,7 @@ INT download_symbols(HMODULE hModule, BOOL hasSettings, char* szLibPath, UINT si
     DWORD ptr;
     UINT nSectionCount;
     UINT i;
-    int32_t offset;
+    uint64_t offset;
     UINT cbDebug = 0;
     PIMAGE_DEBUG_DIRECTORY imageDebugDirectory;
     PdbInfo* pdb_info = NULL;
@@ -372,7 +468,7 @@ INT download_symbols(HMODULE hModule, BOOL hasSettings, char* szLibPath, UINT si
     strcat_s(url, SYMBOL_WEB);
 
     hFile = CreateFile(
-        L"twinui.dll",
+        TEXT(DLL_NAME),
         GENERIC_READ,
         FILE_SHARE_READ,
         NULL,
@@ -447,14 +543,14 @@ INT download_symbols(HMODULE hModule, BOOL hasSettings, char* szLibPath, UINT si
         UINT nSectionCount = ntHeader->FileHeader.NumberOfSections;
         for (i = 0; i < nSectionCount - 1; ++i, ++sectionHeader);
     }
-    offset = (int32_t)baseImage + ptr + (int32_t)sectionHeader->PointerToRawData - (int32_t)sectionHeader->VirtualAddress;
+    offset = (int64_t)baseImage + ptr + (int64_t)sectionHeader->PointerToRawData - (int64_t)sectionHeader->VirtualAddress;
     while (cbDebug >= sizeof(IMAGE_DEBUG_DIRECTORY))
     {
         imageDebugDirectory = (PIMAGE_DEBUG_DIRECTORY)(offset);
         offset += sizeof(IMAGE_DEBUG_DIRECTORY);
         if (imageDebugDirectory->Type == IMAGE_DEBUG_TYPE_CODEVIEW)
         {
-            pdb_info = (PdbInfo*)((int32_t)baseImage + imageDebugDirectory->PointerToRawData);
+            pdb_info = (PdbInfo*)((uint64_t)baseImage + imageDebugDirectory->PointerToRawData);
             if (0 == memcmp(&pdb_info->Signature, "RSDS", 4))
             {
                 strcat_s(url, pdb_info->PdbFileName);
@@ -516,6 +612,12 @@ INT download_symbols(HMODULE hModule, BOOL hasSettings, char* szLibPath, UINT si
     CloseHandle(hFile);
     if (hasSettings || (!hasSettings && !fileExists(szLibPath)))
     {
+        if (downloadFile(url, szLibPath))
+        {
+            return -1;
+        }
+
+        /*
         if (FAILED(URLDownloadToFileA(
             NULL,
             url,
@@ -526,6 +628,7 @@ INT download_symbols(HMODULE hModule, BOOL hasSettings, char* szLibPath, UINT si
         {
             return -1;
         }
+        */
     }
     return 0;
 }
