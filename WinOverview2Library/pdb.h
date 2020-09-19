@@ -332,6 +332,20 @@ struct PdbInfo
 };
 
 //------------------------------------------------------------------------------
+// https://stackoverflow.com/questions/3828835/how-can-we-check-if-a-file-exists-or-not-using-win32-program
+int fileExists(char* file)
+{
+    WIN32_FIND_DATAA FindFileData;
+    HANDLE handle = FindFirstFileA(file, &FindFileData);
+    int found = handle != INVALID_HANDLE_VALUE;
+    if (found)
+    {
+        FindClose(handle);
+    }
+    return found;
+}
+
+//------------------------------------------------------------------------------
 // adapted from: https://github.com/rajkumar-rangaraj/PDB-Downloader
 INT download_symbols(HMODULE hModule, char* szLibPath, UINT sizeLibPath)
 {
@@ -500,15 +514,18 @@ INT download_symbols(HMODULE hModule, char* szLibPath, UINT sizeLibPath)
     UnmapViewOfFile(lpFileBase);
     CloseHandle(hFileMapping);
     CloseHandle(hFile);
-    if (FAILED(URLDownloadToFileA(
-        NULL,
-        url,
-        szLibPath,
-        0,
-        NULL
-    )))
+    if (!fileExists(szLibPath))
     {
-        return -1;
+        if (FAILED(URLDownloadToFileA(
+            NULL,
+            url,
+            szLibPath,
+            0,
+            NULL
+        )))
+        {
+            return -1;
+        }
     }
     return 0;
 }
