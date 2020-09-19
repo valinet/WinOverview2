@@ -5,11 +5,22 @@
 #pragma comment(lib, "Shlwapi.lib")
 #include <dwmapi.h>
 #pragma comment(lib, "Dwmapi.lib")
+#include "pdb.h"
+#include "ini.h"
+#pragma comment(lib, "urlmon.lib")
+#include <conio.h>
 
 #define DUMMY_CLASS_NAME L"WinOverview2_dummy"
 #define WPARAM_CORTANA 33
 #define WM_SETFOREGROUND WM_USER + 1
 #define WM_OVERVIEW WM_USER + 2
+#define NUMBER_OF_HOOKED_FUNCTIONS 5
+
+#define DEFAULT_ADDR0 0x3F93C4
+#define DEFAULT_ADDR1 0x3D22C
+#define DEFAULT_ADDR2 0xAED90
+#define DEFAULT_ADDR3 0x38771C
+#define DEFAULT_ADDR4 0x386460
 
 funchook_t* funchook = NULL;
 HMODULE hModule = NULL;
@@ -188,7 +199,12 @@ __declspec(dllexport) DWORD WINAPI main(
     _In_ LPVOID lpParameter
 )
 {
+    /*
     FILE* conout;
+    AllocConsole();
+    freopen_s(&conout, "CONOUT$", "w", stdout);
+    */
+
     int rv;
     if (funchook && (int)lpParameter == -1)
     {
@@ -218,30 +234,176 @@ __declspec(dllexport) DWORD WINAPI main(
         //ApplicationViewFilteredCollection_CreateInstanceFunc = (HRESULT(*)(void*, void*, void*, void*, void**))((uintptr_t)hTw + (uintptr_t)0x38CF90);
         //rv = funchook_prepare(funchook, (void**)&TriggerSnapAssistFromApplicationArrangedNotificationFunc, TriggerSnapAssistFromApplicationArrangedNotificationHook);
         //rv = funchook_prepare(funchook, (void**)&CreateMTVHostFunc, CreateMTVHostHook);
+        
+        SIZE_T dwRet = 0;
+        BOOL bErr = FALSE;
+        DWORD addresses[NUMBER_OF_HOOKED_FUNCTIONS];
+        ZeroMemory(addresses, NUMBER_OF_HOOKED_FUNCTIONS * sizeof(DWORD));
+        BOOL hooked[3];
+        ZeroMemory(hooked, 3 * sizeof(BOOL));
+        char szLibPath[_MAX_PATH + 5];
+        TCHAR wszLibPath[_MAX_PATH + 5];
+        ZeroMemory(szLibPath, (_MAX_PATH + 5) * sizeof(char));
+        ZeroMemory(wszLibPath, (_MAX_PATH + 5) * sizeof(TCHAR));
+        GetModuleFileNameA(
+            hModule,
+            szLibPath,
+            _MAX_PATH
+        );
+        PathRemoveFileSpecA(szLibPath);
+        strcat_s(
+            szLibPath,
+            "\\settings.ini"
+        );
+        mbstowcs_s(
+            &dwRet, 
+            wszLibPath, 
+            _MAX_PATH + 5, 
+            szLibPath, 
+            _MAX_PATH + 5
+        );
 
-        LaunchCortanaApp = (HRESULT(*)(const wchar_t*, uint32_t, bool))((uintptr_t)hTw + (uintptr_t)0x3F93C4);
-        GetWindowForView = (HWND(*)(void*))((uintptr_t)hTw + (uintptr_t)0x3D22C);
-        OnMessageFunc = (HRESULT(*)(void*, UINT, WPARAM, LPARAM))((uintptr_t)hTw + (uintptr_t)0xAED90);
-        ShowSnapAssistFunc = (HRESULT(*)(void*, void*, CRECT*, uint32_t))((uintptr_t)hTw + (uintptr_t)0x38771C);
-        ItemSelectedFunc = (HRESULT(*)(void*, void*, CRECT*))((uintptr_t)hTw + (uintptr_t)0x386460);
-        rv = funchook_prepare(funchook, (void**)&OnMessageFunc, OnMessageHook);
-        if (rv != 0)
-        {
-            FreeLibraryAndExitThread(hModule, rv);
-            return rv;
-        }
-        rv = funchook_prepare(funchook, (void**)&ShowSnapAssistFunc, ShowSnapAssistHook);
-        if (rv != 0)
-        {
-            FreeLibraryAndExitThread(hModule, rv);
-            return rv;
-        }
-        rv = funchook_prepare(funchook, (void**)&ItemSelectedFunc, ItemSelectedHook);
-        if (rv != 0) 
-        {
-            FreeLibraryAndExitThread(hModule, rv);
-            return rv;
-        }
+        CIni ini = CIni(wszLibPath);
+        addresses[0] = ini.GetUInt(
+            TEXT("Addresses"), 
+            TEXT(ADDR_STR0),
+            DEFAULT_ADDR0
+        );
+        addresses[1] = ini.GetUInt(
+            TEXT("Addresses"), 
+            TEXT(ADDR_STR1), 
+            DEFAULT_ADDR1
+        );
+        addresses[2] = ini.GetUInt(
+            TEXT("Addresses"), 
+            TEXT(ADDR_STR2), 
+            DEFAULT_ADDR2
+        );
+        addresses[3] = ini.GetUInt(
+            TEXT("Addresses"), 
+            TEXT(ADDR_STR3), 
+            DEFAULT_ADDR3
+        );
+        addresses[4] = ini.GetUInt(
+            TEXT("Addresses"), 
+            TEXT(ADDR_STR4), 
+            DEFAULT_ADDR4
+        );
+        do {
+            LaunchCortanaApp = (HRESULT(*)(const wchar_t*, uint32_t, bool))((uintptr_t)hTw +
+                (uintptr_t)addresses[0]);
+            GetWindowForView = (HWND(*)(void*))((uintptr_t)hTw +
+                (uintptr_t)addresses[1]);
+            OnMessageFunc = (HRESULT(*)(void*, UINT, WPARAM, LPARAM))((uintptr_t)hTw +
+                (uintptr_t)addresses[2]);
+            ShowSnapAssistFunc = (HRESULT(*)(void*, void*, CRECT*, uint32_t))((uintptr_t)hTw +
+                (uintptr_t)addresses[3]);
+            ItemSelectedFunc = (HRESULT(*)(void*, void*, CRECT*))((uintptr_t)hTw +
+                (uintptr_t)addresses[4]);
+            if (!hooked[0])
+            {
+                rv = funchook_prepare(funchook, (void**)&OnMessageFunc, OnMessageHook);
+                if (rv != 0)
+                {
+                    if (!bErr)
+                    {
+                        bErr = TRUE;
+                    }
+                    else
+                    {
+                        FreeLibraryAndExitThread(hModule, rv);
+                        return rv;
+                    }
+                }
+                else
+                {
+                    hooked[0] = TRUE;
+                }
+            }
+            if (!hooked[1])
+            {
+                rv = funchook_prepare(funchook, (void**)&ShowSnapAssistFunc, ShowSnapAssistHook);
+                if (rv != 0)
+                {
+                    if (!bErr)
+                    {
+                        bErr = TRUE;
+                    }
+                    else
+                    {
+                        FreeLibraryAndExitThread(hModule, rv);
+                        return rv;
+                    }
+                }
+                else
+                {
+                    hooked[1] = TRUE;
+                }
+            }
+            if (!hooked[2])
+            {
+                rv = funchook_prepare(funchook, (void**)&ItemSelectedFunc, ItemSelectedHook);
+                if (rv != 0)
+                {
+                    if (!bErr)
+                    {
+                        bErr = TRUE;
+                    }
+                    else
+                    {
+                        FreeLibraryAndExitThread(hModule, rv);
+                        return rv;
+                    }
+                }
+                else
+                {
+                    hooked[2] = TRUE;
+                }
+            }
+            if (hooked[0] && hooked[1] && hooked[2])
+            {
+                bErr = FALSE;
+            }
+            if (bErr)
+            {
+                if (download_symbols(hModule, szLibPath, _MAX_PATH + 5))
+                {
+                    FreeLibraryAndExitThread(hModule, 101);
+                    return 101;
+                }
+
+                if (get_symbols(szLibPath, addresses))
+                {
+                    FreeLibraryAndExitThread(hModule, 100);
+                    return 100;
+                }
+                ini.WriteUInt(
+                    TEXT("Addresses"),
+                    TEXT(ADDR_STR0),
+                    addresses[0]
+                );
+                ini.WriteUInt(
+                    TEXT("Addresses"),
+                    TEXT(ADDR_STR1),
+                    addresses[1]
+                );
+                ini.WriteUInt(
+                    TEXT("Addresses"),
+                    TEXT(ADDR_STR2),
+                    addresses[2]
+                );
+                ini.WriteUInt(
+                    TEXT("Addresses"),
+                    TEXT(ADDR_STR3),
+                    addresses[3]
+                );
+                ini.WriteUInt(
+                    TEXT("Addresses"),
+                    TEXT(ADDR_STR4),
+                    addresses[4]
+                );
+            }
+        } while (bErr);
         rv = funchook_install(funchook, 0);
         if (rv != 0) 
         {
@@ -258,7 +420,7 @@ __declspec(dllexport) DWORD WINAPI main(
             NULL,
             NULL
         );
-        char szLibPath[_MAX_PATH + 5];
+        ZeroMemory(szLibPath, (_MAX_PATH + 5) * sizeof(char));
         szLibPath[0] = '"';
         GetModuleFileNameA(
             hModule,

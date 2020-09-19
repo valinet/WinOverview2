@@ -146,9 +146,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ini.cpp" />
     <ClCompile Include="dllmain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ini.h" />
+    <ClInclude Include="pdb.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
