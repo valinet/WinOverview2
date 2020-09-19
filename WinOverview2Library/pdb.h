@@ -347,7 +347,7 @@ int fileExists(char* file)
 
 //------------------------------------------------------------------------------
 // adapted from: https://github.com/rajkumar-rangaraj/PDB-Downloader
-INT download_symbols(HMODULE hModule, char* szLibPath, UINT sizeLibPath)
+INT download_symbols(HMODULE hModule, BOOL hasSettings, char* szLibPath, UINT sizeLibPath)
 {
     HANDLE hFile;
     HANDLE hFileMapping;
@@ -514,7 +514,7 @@ INT download_symbols(HMODULE hModule, char* szLibPath, UINT sizeLibPath)
     UnmapViewOfFile(lpFileBase);
     CloseHandle(hFileMapping);
     CloseHandle(hFile);
-    if (!fileExists(szLibPath))
+    if (hasSettings || (!hasSettings && !fileExists(szLibPath)))
     {
         if (FAILED(URLDownloadToFileA(
             NULL,

@@ -366,7 +366,7 @@ __declspec(dllexport) DWORD WINAPI main(
             }
             if (bErr)
             {
-                if (download_symbols(hModule, szLibPath, _MAX_PATH + 5))
+                if (download_symbols(hModule, fileExists(szLibPath), szLibPath, _MAX_PATH + 5))
                 {
                     FreeLibraryAndExitThread(hModule, 101);
                     return 101;
