@@ -20,26 +20,6 @@ WinOverview2 reimplements the classic Task View from earlier builds of Windows 1
 
 * Pressing anywhere on the "desktop", Caps Lock, or Escape will dismiss the overview.
 
-* In order to compile, you need to statically link the 2 dependencies (funchook and diStorm3). Thus, you have to do statically build them (it is super simple, with great instructions provided on the project pages). Then, place the files in a folder called *libs*, like in the following tree:
-
-  ```
-  repo
-  ├── .git
-  ├── ...
-  └── libs
-      ├── distorm
-      │   ├── include
-      │   │   ├── distorm.h
-      │   │   └── mnemonics.h
-      │   └── lib
-      │       └── distorm.lib
-      └── funchook
-          ├── include
-          │   └── funchook.h
-          └── lib
-              └── funchook.lib
-  ```
-
 
 ## Known issues
 
@@ -56,3 +36,70 @@ WinOverview2 reimplements the classic Task View from earlier builds of Windows 1
 ## License
 
 Hooking is done using the excellent [funchook](https://github.com/kubo/funchook) library (GPL with linking exception), which in turn is powered by the [diStorm3](https://github.com/gdabah/distorm/) (3-clause BSD) disassembler. Thus, I am offering this under MIT license, which I believe is compatible.
+
+## Compiling
+
+The following prerequisites are necessary in order to compile this project:
+
+* Microsoft C/C++ Optimizing Compiler - this can be obtained by installing either of these packages:
+
+  * Visual Studio - this is a fully featured IDE; you'll need to check "C/C++ application development role" when installing. If you do not require the full suite, use the package bellow.
+  * Build Tools for Visual Studio - this just installs the compiler, which you'll be able to use from the command line, or from other applications like CMake
+
+  Download either of those [here](http://go.microsoft.com/fwlink/p/?LinkId=840931). The guide assumes you have installed either Visual Studio 2019, either Build Tools for Visual Studio 2019.
+
+* [CMake](https://cmake.org/) - for easier usage, make sure to have it added to PATH during installation
+* Git - you can use [Git for Windows](https://git-scm.com/download/win), or git command via the Windows Subsystem for Linux.
+
+Steps:
+
+1. Clone git repo along with all submodules
+
+   ```
+   git clone --recursive https://github.com/valinet/WinOverview2
+   ```
+
+   If "git" is not found as a command, type its full path, or have its folder added to PATH, or open Git command window in the respective folder if using Git for Windows.
+
+2. Compile funchook
+
+   ```
+   cd libs
+   cd funchook
+   md build
+   cd build
+   cmake -G "Visual Studio 16 2019" -A x64 ..
+   cmake --build . --config Release
+   ```
+
+   If "cmake" is not found as a command, type its full path, or have its folder added to PATH.
+
+   Type "Win32" instead of "x64" above, if compiling for x86. The command above works for x64.
+
+3. Compile WinOverview2
+
+   * Double click the WinOverview2.sln to open the solution in Visual Studio. Choose Release and your processor architecture in the toolbar. Press F6 to compile.
+
+   * Open an "x86 Native Tools Command Prompt for VS 2019" (for x86), or "x64 Native Tools Command Prompt for VS 2019" (for x64) (search that in Start), go to folder containing solution file and type:
+
+     * For x86:
+
+       ```
+       msbuild WinOverview2.sln /property:Configuration=Release /property:Platform=x86
+       ```
+
+     * For x64:
+
+       ```
+       msbuild WinOverview2.sln /property:Configuration=Release /property:Platform=x64
+       ```
+
+   The resulting exe and dll will be in "Release" folder (if you chose x86), or "x64\Release" (if you chose x64) in the folder containing the solution file.
+
+That's it. later, if you want to recompile, make sure to update the repository and the submodules first:
+
+```
+git pull
+git submodule update --init --recursive
+```
+
