@@ -1,25 +1,31 @@
-#include <iostream>
+#include <valinet/ini/ini.h>
+#include <valinet/pdb/pdb.h>
+#include <stdio.h>
+#include <stdbool.h>
 #include <Windows.h>
 #include <funchook.h>
+#pragma comment(lib, "Psapi.lib") // required by funchook
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
-#include <dwmapi.h>
-#pragma comment(lib, "Dwmapi.lib")
-#include "pdb.h"
-#include "ini.h"
-#include <conio.h>
 
 #define DUMMY_CLASS_NAME L"WinOverview2_dummy"
 #define WPARAM_CORTANA 33
 #define WM_SETFOREGROUND WM_USER + 1
 #define WM_OVERVIEW WM_USER + 2
 #define NUMBER_OF_HOOKED_FUNCTIONS 5
+#define DLL_NAME "twinui.dll"
 
 #define DEFAULT_ADDR0 0x3F93C4
 #define DEFAULT_ADDR1 0x3D22C
 #define DEFAULT_ADDR2 0xAED90
 #define DEFAULT_ADDR3 0x38771C
 #define DEFAULT_ADDR4 0x386460
+
+#define ADDR_STR0               "LaunchCortanaApp"
+#define ADDR_STR1               "ApplicationViewHelpers::GetWindowForView"
+#define ADDR_STR2               "CImmersiveHotkeyNotification::OnMessage"
+#define ADDR_STR3               "CSnapAssistControllerBase::_ShowSnapAssist"
+#define ADDR_STR4               "CSnapAssistControllerBase::ItemSelected"
 
 funchook_t* funchook = NULL;
 HMODULE hModule = NULL;
@@ -88,7 +94,7 @@ HRESULT OnMessageHook(
                 MONITORINFOEX m;
                 m.cbSize = sizeof(MONITORINFOEX);
                 GetMonitorInfo(
-                    MonitorFromWindow(nullptr, MONITOR_DEFAULTTOPRIMARY),
+                    MonitorFromWindow(NULL, MONITOR_DEFAULTTOPRIMARY),
                     &m
                 );
                 CRECT rect;
@@ -111,12 +117,14 @@ HRESULT OnMessageHook(
         }
         else
         {
-            /*MessageBox(
+            /*
+            MessageBox(
                 NULL,
                 L"To enable this feature, snap any window to the side of the screen.",
                 L"Windows Explorer",
                 0
-            );*/
+            );
+            */
         }
 
         return 0;
@@ -236,14 +244,21 @@ __declspec(dllexport) DWORD WINAPI main(
         
         SIZE_T dwRet = 0;
         BOOL bErr = FALSE;
+        char* symbolNames[NUMBER_OF_HOOKED_FUNCTIONS] = {
+            ADDR_STR0,
+            ADDR_STR1,
+            ADDR_STR2,
+            ADDR_STR3,
+            ADDR_STR4
+        };
         DWORD addresses[NUMBER_OF_HOOKED_FUNCTIONS];
         ZeroMemory(addresses, NUMBER_OF_HOOKED_FUNCTIONS * sizeof(DWORD));
         BOOL hooked[3];
         ZeroMemory(hooked, 3 * sizeof(BOOL));
-        char szLibPath[_MAX_PATH + 5];
-        TCHAR wszLibPath[_MAX_PATH + 5];
-        ZeroMemory(szLibPath, (_MAX_PATH + 5) * sizeof(char));
-        ZeroMemory(wszLibPath, (_MAX_PATH + 5) * sizeof(TCHAR));
+        char szLibPath[_MAX_PATH];
+        TCHAR wszLibPath[_MAX_PATH];
+        ZeroMemory(szLibPath, (_MAX_PATH) * sizeof(char));
+        ZeroMemory(wszLibPath, (_MAX_PATH) * sizeof(TCHAR));
         GetModuleFileNameA(
             hModule,
             szLibPath,
@@ -252,41 +267,46 @@ __declspec(dllexport) DWORD WINAPI main(
         PathRemoveFileSpecA(szLibPath);
         strcat_s(
             szLibPath,
+            _MAX_PATH,
             "\\settings.ini"
         );
         mbstowcs_s(
             &dwRet, 
             wszLibPath, 
-            _MAX_PATH + 5, 
+            _MAX_PATH, 
             szLibPath, 
-            _MAX_PATH + 5
+            _MAX_PATH
         );
 
-        CIni ini = CIni(wszLibPath);
-        addresses[0] = ini.GetUInt(
+        addresses[0] = VnGetUInt(
             TEXT("Addresses"), 
             TEXT(ADDR_STR0),
-            DEFAULT_ADDR0
+            DEFAULT_ADDR0,
+            wszLibPath
         );
-        addresses[1] = ini.GetUInt(
+        addresses[1] = VnGetUInt(
             TEXT("Addresses"), 
             TEXT(ADDR_STR1), 
-            DEFAULT_ADDR1
+            DEFAULT_ADDR1,
+            wszLibPath
         );
-        addresses[2] = ini.GetUInt(
+        addresses[2] = VnGetUInt(
             TEXT("Addresses"), 
             TEXT(ADDR_STR2), 
-            DEFAULT_ADDR2
+            DEFAULT_ADDR2,
+            wszLibPath
         );
-        addresses[3] = ini.GetUInt(
+        addresses[3] = VnGetUInt(
             TEXT("Addresses"), 
             TEXT(ADDR_STR3), 
-            DEFAULT_ADDR3
+            DEFAULT_ADDR3,
+            wszLibPath
         );
-        addresses[4] = ini.GetUInt(
+        addresses[4] = VnGetUInt(
             TEXT("Addresses"), 
             TEXT(ADDR_STR4), 
-            DEFAULT_ADDR4
+            DEFAULT_ADDR4,
+            wszLibPath
         );
         do {
             LaunchCortanaApp = (HRESULT(*)(const wchar_t*, uint32_t, bool))((uintptr_t)hTw +
@@ -365,41 +385,66 @@ __declspec(dllexport) DWORD WINAPI main(
             }
             if (bErr)
             {
-                if (download_symbols(hModule, fileExists(szLibPath), szLibPath, _MAX_PATH + 5))
+                GetModuleFileNameA(
+                    hModule,
+                    szLibPath,
+                    _MAX_PATH
+                );
+                PathRemoveFileSpecA(szLibPath);
+                strcat_s(
+                    szLibPath,
+                    _MAX_PATH,
+                    "\\"
+                );
+                if (VnDownloadSymbols(
+                    hModule, 
+                    DLL_NAME, 
+                    szLibPath, 
+                    _MAX_PATH
+                ))
                 {
-                    FreeLibraryAndExitThread(hModule, 101);
-                    return 101;
+                    FreeLibraryAndExitThread(hModule, 0x101);
+                    return 0x101;
                 }
-
-                if (get_symbols(szLibPath, addresses))
+                if (VnGetSymbols(
+                    szLibPath, 
+                    addresses,
+                    symbolNames,
+                    NUMBER_OF_HOOKED_FUNCTIONS
+                ))
                 {
-                    FreeLibraryAndExitThread(hModule, 100);
-                    return 100;
+                    FreeLibraryAndExitThread(hModule, 0x100);
+                    return 0x100;
                 }
-                ini.WriteUInt(
+                VnWriteUInt(
                     TEXT("Addresses"),
                     TEXT(ADDR_STR0),
-                    addresses[0]
+                    addresses[0],
+                    wszLibPath
                 );
-                ini.WriteUInt(
+                VnWriteUInt(
                     TEXT("Addresses"),
                     TEXT(ADDR_STR1),
-                    addresses[1]
+                    addresses[1],
+                    wszLibPath
                 );
-                ini.WriteUInt(
+                VnWriteUInt(
                     TEXT("Addresses"),
                     TEXT(ADDR_STR2),
-                    addresses[2]
+                    addresses[2],
+                    wszLibPath
                 );
-                ini.WriteUInt(
+                VnWriteUInt(
                     TEXT("Addresses"),
                     TEXT(ADDR_STR3),
-                    addresses[3]
+                    addresses[3],
+                    wszLibPath
                 );
-                ini.WriteUInt(
+                VnWriteUInt(
                     TEXT("Addresses"),
                     TEXT(ADDR_STR4),
-                    addresses[4]
+                    addresses[4],
+                    wszLibPath
                 );
             }
         } while (bErr);
@@ -419,7 +464,7 @@ __declspec(dllexport) DWORD WINAPI main(
             NULL,
             NULL
         );
-        ZeroMemory(szLibPath, (_MAX_PATH + 5) * sizeof(char));
+        ZeroMemory(szLibPath, (_MAX_PATH) * sizeof(char));
         szLibPath[0] = '"';
         GetModuleFileNameA(
             hModule,
@@ -429,6 +474,7 @@ __declspec(dllexport) DWORD WINAPI main(
         PathRemoveFileSpecA(szLibPath + 1);
         strcat_s(
             szLibPath,
+            _MAX_PATH,
             "\\WinOverview2.exe\" 1"
         );
         WinExec(
