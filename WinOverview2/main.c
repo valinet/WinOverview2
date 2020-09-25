@@ -12,6 +12,7 @@
 #define WM_OVERVIEW WM_USER + 2
 
 #define STARTUP_DELAY 2000
+#define ACTIVATE_CHECK_DELAY 100
 
 #ifdef _DEBUG
 #define DEBUG
@@ -140,7 +141,7 @@ DWORD WINAPI InvokeThread(
     keybd_event(0x43, 0, 0, 0);
     keybd_event(0x43, 0, KEYEVENTF_KEYUP, 0);
     keybd_event(VK_LWIN, 0, KEYEVENTF_KEYUP, 0);
-    Sleep(500);
+    Sleep(ACTIVATE_CHECK_DELAY);
     if (isInOverview && 
         FindWindow(
             L"MultitaskingViewFrame", 
