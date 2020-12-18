@@ -14,9 +14,7 @@
 #define STARTUP_DELAY 2000
 #define ACTIVATE_CHECK_DELAY 100
 
-#ifdef _DEBUG
-#define DEBUG
-#endif
+//#define DEBUG
 
 HANDLE hProcess = NULL;
 HMODULE hMod = NULL;
@@ -321,7 +319,7 @@ int WINAPI wWinMain(
         );
         return 0;
     }
-#ifdef _DEBUG
+#ifdef DEBUG
     if (!AllocConsole());
     if (freopen_s(
         &conout, 
@@ -330,12 +328,12 @@ int WINAPI wWinMain(
         stdout
     ));
 #endif
-    hHook = SetWindowsHookEx(
+    /*hHook = SetWindowsHookEx(
         WH_KEYBOARD_LL,
         LowLevelKeyboardProc,
         hInstance,
         NULL
-    );
+    );*/
     printf("WinOverview2\n===============\n");
     GetModuleFileName(
         GetModuleHandle(NULL),

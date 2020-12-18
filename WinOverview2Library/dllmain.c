@@ -15,11 +15,11 @@
 #define NUMBER_OF_HOOKED_FUNCTIONS 5
 #define DLL_NAME "twinui.dll"
 
-#define DEFAULT_ADDR0 0x3F93C4
-#define DEFAULT_ADDR1 0x3D22C
-#define DEFAULT_ADDR2 0xAED90
-#define DEFAULT_ADDR3 0x38771C
-#define DEFAULT_ADDR4 0x386460
+#define DEFAULT_ADDR0 0
+#define DEFAULT_ADDR1 0
+#define DEFAULT_ADDR2 0
+#define DEFAULT_ADDR3 0
+#define DEFAULT_ADDR4 0
 
 #define ADDR_STR0               "LaunchCortanaApp"
 #define ADDR_STR1               "ApplicationViewHelpers::GetWindowForView"
@@ -167,12 +167,13 @@ HRESULT ItemSelectedHook(
 )
 {
     HWND hWnd = GetWindowForView(appView);
-    SendMessage(
+    /*SendMessage(
         messageWindow,
         WM_SETFOREGROUND,
         (WPARAM)hWnd,
         NULL
-    );
+    );*/
+    SetForegroundWindow(hWnd);
     return ItemSelectedFunc(
         _this,
         appView,
@@ -206,11 +207,11 @@ __declspec(dllexport) DWORD WINAPI main(
     _In_ LPVOID lpParameter
 )
 {
-    /*
-    FILE* conout;
+    
+    /*FILE* conout;
     AllocConsole();
-    freopen_s(&conout, "CONOUT$", "w", stdout);
-    */
+    freopen_s(&conout, "CONOUT$", "w", stdout);*/
+    
 
     int rv;
     if (funchook && (int)lpParameter == -1)
@@ -319,69 +320,93 @@ __declspec(dllexport) DWORD WINAPI main(
                 (uintptr_t)addresses[3]);
             ItemSelectedFunc = (HRESULT(*)(void*, void*, CRECT*))((uintptr_t)hTw +
                 (uintptr_t)addresses[4]);
-            if (!hooked[0])
+            if (addresses[0] == 0 ||
+                addresses[1] == 0 ||
+                addresses[2] == 0 ||
+                addresses[3] == 0 ||
+                addresses[4] == 0
+            )
             {
-                rv = funchook_prepare(funchook, (void**)&OnMessageFunc, OnMessageHook);
-                if (rv != 0)
+                bErr = TRUE;
+            }
+            if (!bErr)
+            {
+                if (!hooked[0])
                 {
-                    if (!bErr)
+                    rv = funchook_prepare(
+                        funchook, 
+                        (void**)&OnMessageFunc,
+                        OnMessageHook
+                    );
+                    if (rv != 0)
                     {
-                        bErr = TRUE;
+                        if (!bErr)
+                        {
+                            bErr = TRUE;
+                        }
+                        else
+                        {
+                            FreeLibraryAndExitThread(hModule, rv);
+                            return rv;
+                        }
                     }
                     else
                     {
-                        FreeLibraryAndExitThread(hModule, rv);
-                        return rv;
+                        hooked[0] = TRUE;
                     }
                 }
-                else
+                if (!hooked[1])
                 {
-                    hooked[0] = TRUE;
-                }
-            }
-            if (!hooked[1])
-            {
-                rv = funchook_prepare(funchook, (void**)&ShowSnapAssistFunc, ShowSnapAssistHook);
-                if (rv != 0)
-                {
-                    if (!bErr)
+                    rv = funchook_prepare(
+                        funchook, 
+                        (void**)&ShowSnapAssistFunc, 
+                        ShowSnapAssistHook
+                    );
+                    if (rv != 0)
                     {
-                        bErr = TRUE;
+                        if (!bErr)
+                        {
+                            bErr = TRUE;
+                        }
+                        else
+                        {
+                            FreeLibraryAndExitThread(hModule, rv);
+                            return rv;
+                        }
                     }
                     else
                     {
-                        FreeLibraryAndExitThread(hModule, rv);
-                        return rv;
+                        hooked[1] = TRUE;
                     }
                 }
-                else
+                if (!hooked[2])
                 {
-                    hooked[1] = TRUE;
-                }
-            }
-            if (!hooked[2])
-            {
-                rv = funchook_prepare(funchook, (void**)&ItemSelectedFunc, ItemSelectedHook);
-                if (rv != 0)
-                {
-                    if (!bErr)
+                    rv = funchook_prepare(
+                        funchook, 
+                        (void**)&ItemSelectedFunc,
+                        ItemSelectedHook
+                    );
+                    if (rv != 0)
                     {
-                        bErr = TRUE;
+                        if (!bErr)
+                        {
+                            bErr = TRUE;
+                        }
+                        else
+                        {
+                            FreeLibraryAndExitThread(hModule, rv);
+                            return rv;
+                        }
                     }
                     else
                     {
-                        FreeLibraryAndExitThread(hModule, rv);
-                        return rv;
+                        hooked[2] = TRUE;
                     }
                 }
-                else
+                if (hooked[0] && hooked[1] && hooked[2])
                 {
-                    hooked[2] = TRUE;
+                    bErr = FALSE;
                 }
-            }
-            if (hooked[0] && hooked[1] && hooked[2])
-            {
-                bErr = FALSE;
             }
             if (bErr)
             {
